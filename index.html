@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tirage">
+<title>Tirage au chapeau</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=DM+Mono:wght@400;500&display=swap">
+<style>
+/* Layout : une colonne étroite façon carnet de tickets de tombola ; chaque étape est un ticket perforé. */
+:root {
+  --bg: #eef0f6;
+  --surface: #ffffff;
+  --ink: #161a2e;
+  --muted: #5b6180;
+  --line: #d5d9e6;
+  --accent: #2f45d8;
+  --accent-ink: #ffffff;
+  --stamp: #f2c230;
+  --ok: #1f8a5b;
+  --warn: #b86b00;
+  --warn-bg: #fff3dc;
+  --ok-bg: #e2f5ec;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f111b; --surface: #1a1d2c; --ink: #eceefa; --muted: #9aa0c0; --line: #2d3149;
+    --accent: #7d8cff; --accent-ink: #0f111b; --stamp: #f2c230; --ok: #5fd19c; --warn: #f2b14a;
+    --warn-bg: #2e2614; --ok-bg: #13291f; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f111b; --surface: #1a1d2c; --ink: #eceefa; --muted: #9aa0c0; --line: #2d3149;
+  --accent: #7d8cff; --accent-ink: #0f111b; --stamp: #f2c230; --ok: #5fd19c; --warn: #f2b14a;
+  --warn-bg: #2e2614; --ok-bg: #13291f; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+
+header.top { display: flex; flex-direction: column; gap: 10px; }
+.brand { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.brand h1 {
+  font-family: var(--font-display); font-weight: 800; font-size: 1.75rem; line-height: 1.1;
+  margin: 0; letter-spacing: -0.02em; text-wrap: balance;
+}
+.serial { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); letter-spacing: 0.08em; }
+
+ol.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+ol.steps li {
+  font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted);
+  border-top: 3px solid var(--line); padding-top: 6px; font-weight: 700;
+}
+ol.steps li.on { color: var(--ink); border-color: var(--accent); }
+ol.steps li.done { border-color: var(--accent); opacity: 0.55; }
+ol.steps span { font-family: var(--font-mono); margin-right: 4px; }
+
+/* Ticket perforé */
+.ticket {
+  position: relative; background: var(--surface); border-radius: var(--radius);
+  padding: 22px 20px; display: flex; flex-direction: column; gap: 16px;
+  box-shadow: 0 1px 0 var(--line), 0 10px 30px -18px rgba(20, 25, 60, 0.35);
+}
+.ticket.stub { padding-bottom: 0; }
+.perfo {
+  position: relative; margin: 4px -20px 0; height: 0; border-top: 2px dashed var(--line);
+}
+.perfo::before, .perfo::after {
+  content: ""; position: absolute; top: -12px; width: 22px; height: 22px; border-radius: 50%; background: var(--bg);
+}
+.perfo::before { left: -11px; }
+.perfo::after { right: -11px; }
+.stub-foot {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 14px 0 16px; font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted);
+}
+
+h2 { font-family: var(--font-display); font-weight: 700; font-size: 1.3rem; margin: 0; line-height: 1.2; text-wrap: balance; }
+p { margin: 0; }
+.hint { color: var(--muted); font-size: 0.92rem; }
+
+/* Formulaires */
+.add-row { display: flex; gap: 8px; }
+input[type="text"] {
+  flex: 1; min-width: 0; font: inherit; color: var(--ink); background: var(--bg);
+  border: 2px solid var(--line); border-radius: 10px; padding: 11px 12px;
+}
+input[type="text"]:focus { outline: none; border-color: var(--accent); }
+.err { color: var(--warn); font-size: 0.9rem; min-height: 1.35em; }
+
+button {
+  font: inherit; font-weight: 700; cursor: pointer; border-radius: 10px; border: 2px solid transparent;
+  padding: 11px 16px; transition: transform 0.08s ease, background 0.15s ease;
+}
+button:active { transform: translateY(1px); }
+button:focus-visible { outline: 3px solid var(--stamp); outline-offset: 2px; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn-text { background: none; border: none; color: var(--muted); padding: 6px 4px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.btn-big { font-family: var(--font-display); font-size: 1.15rem; padding: 16px 18px; width: 100%; border-radius: 12px; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.actions > * { flex: 1 1 140px; }
+
+/* Liste des participants */
+ul.names { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+ul.names li {
+  display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line);
+}
+ul.names li:last-child { border-bottom: none; }
+.num { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); width: 2.2em; font-variant-numeric: tabular-nums; }
+.nm { flex: 1; min-width: 0; font-weight: 700; overflow-wrap: anywhere; }
+.rm { background: none; border: none; color: var(--muted); font-size: 1.3rem; line-height: 1; padding: 4px 8px; }
+.rm:hover { color: var(--warn); }
+.empty { color: var(--muted); font-style: italic; padding: 8px 0; }
+.example-note {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--warn-bg); color: var(--warn); border-radius: 10px; padding: 8px 12px; font-size: 0.88rem; font-weight: 700;
+}
+.example-note .btn-text { color: var(--warn); }
+
+/* Historique */
+.hist { display: flex; flex-direction: column; gap: 6px; padding-block: 12px; border-bottom: 1px solid var(--line); }
+.hist:last-child { border-bottom: none; padding-bottom: 0; }
+.hist label { font-weight: 700; }
+.hist label span { color: var(--muted); font-weight: 400; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 0; }
+.chip {
+  font-size: 0.8rem; border-radius: 999px; padding: 2px 10px; font-weight: 700;
+  background: var(--ok-bg); color: var(--ok);
+}
+.chip.bad { background: transparent; color: var(--muted); border: 1px dashed var(--line); font-weight: 400; text-decoration: line-through; }
+
+/* Résultat et distribution */
+.verdict { border-radius: 12px; padding: 14px 16px; font-weight: 700; display: flex; flex-direction: column; gap: 4px; }
+.verdict.ok { background: var(--ok-bg); color: var(--ok); }
+.verdict.warn { background: var(--warn-bg); color: var(--warn); }
+.verdict small { font-weight: 400; font-size: 0.9rem; }
+
+.turn { text-align: center; align-items: center; padding-block: 34px 22px; }
+.turn .eyebrow { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); font-weight: 700; }
+.turn .who {
+  font-family: var(--font-display); font-weight: 800; font-size: clamp(2.2rem, 11vw, 3.4rem);
+  line-height: 1.02; letter-spacing: -0.03em; overflow-wrap: anywhere; text-wrap: balance;
+}
+.turn .who.hidden-name { color: var(--accent); }
+.stamp {
+  display: inline-block; background: var(--stamp); color: #1d1600; font-family: var(--font-mono);
+  font-size: 0.78rem; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 6px; transform: rotate(-3deg);
+}
+.reveal-in { animation: unfold 0.35s cubic-bezier(.2,.8,.3,1.2); }
+@keyframes unfold { from { transform: scaleY(0.6) rotate(-1deg); opacity: 0.2; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .reveal-in { animation: none; } button { transition: none; } }
+
+.reused-note { color: var(--warn); font-size: 0.9rem; max-width: 30ch; }
+.progress { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; }
+.progress i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+.progress i.seen { background: var(--accent); }
+.progress i.now { background: var(--stamp); }
+
+.relist { display: flex; flex-wrap: wrap; gap: 8px; }
+.relist button { flex: 0 1 auto; }
+.confirm { display: flex; flex-direction: column; gap: 10px; background: var(--warn-bg); border-radius: 12px; padding: 14px; }
+.confirm p { color: var(--warn); font-weight: 700; }
+</style>
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)} body{margin:0} [hidden]{display:none!important}</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Tirage au chapeau</h1>
+      <span class="serial" id="serial">N° 000</span>
+    </div>
+    <ol class="steps" id="steps">
+      <li data-step="participants"><span>1</span>Participants</li>
+      <li data-step="historique"><span>2</span>Historique</li>
+      <li data-step="tirage"><span>3</span>Tirage</li>
+    </ol>
+  </header>
+  <main id="app"></main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Outils ----------
+  function normaliser(nom) {
+    return String(nom)
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .toLowerCase().replace(/[-'’]/g, " ")
+      .split(/\s+/).filter(Boolean).join(" ");
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  // Algorithme hongrois : affectation de coût minimal (O(n³)).
+  function affectationCoutMinimal(cout) {
+    var n = cout.length, GRAND = 1e18;
+    var u = new Float64Array(n + 1), v = new Float64Array(n + 1);
+    var p = new Int32Array(n + 1), way = new Int32Array(n + 1);
+    for (var i = 1; i <= n; i++) {
+      p[0] = i;
+      var j0 = 0;
+      var minv = new Float64Array(n + 1).fill(GRAND);
+      var used = new Uint8Array(n + 1);
+      do {
+        used[j0] = 1;
+        var i0 = p[j0], delta = GRAND, j1 = 0;
+        for (var j = 1; j <= n; j++) {
+          if (!used[j]) {
+            var cur = cout[i0 - 1][j - 1] - u[i0] - v[j];
+            if (cur < minv[j]) { minv[j] = cur; way[j] = j0; }
+            if (minv[j] < delta) { delta = minv[j]; j1 = j; }
+          }
+        }
+        for (var k = 0; k <= n; k++) {
+          if (used[k]) { u[p[k]] += delta; v[k] -= delta; } else { minv[k] -= delta; }
+        }
+        j0 = j1;
+      } while (p[j0] !== 0);
+      do { var jj = way[j0]; p[j0] = p[jj]; j0 = jj; } while (j0 !== 0);
+    }
+    var res = new Array(n);
+    for (var c = 1; c <= n; c++) res[p[c] - 1] = c - 1;
+    return res;
+  }
+
+  // ---------- État ----------
+  var CLE = "tirage-au-chapeau-v1";
+  var EXEMPLE = ["Éloïse", "Marc", "Jean-Paul", "Lina"];
+  var EXEMPLE_HIST = ["marc", "eloise, lina", "", "Jean paul"];
+  var state = charger() || {
+    step: "participants",
+    participants: EXEMPLE.slice(),
+    history: EXEMPLE_HIST.slice(),
+    exemple: true,
+    draw: null,
+    serial: Math.floor(Math.random() * 900) + 100
+  };
+  var confirmReset = false;
+
+  function charger() {
+    try {
+      var raw = localStorage.getItem(CLE);
+      if (!raw) return null;
+      var s = JSON.parse(raw);
+      if (!s || !Array.isArray(s.participants)) return null;
+      return s;
+    } catch (e) { return null; }
+  }
+  function sauver() {
+    try { localStorage.setItem(CLE, JSON.stringify(state)); } catch (e) { /* stockage indisponible */ }
+  }
+
+  // Analyse de l'historique saisi pour une personne.
+  function analyserHistorique(i) {
+    var index = {};
+    state.participants.forEach(function (nom, k) { index[normaliser(nom)] = k; });
+    var vus = {}, items = [];
+    (state.history[i] || "").split(",").forEach(function (morceau) {
+      morceau = morceau.trim();
+      if (!morceau) return;
+      var k = index[normaliser(morceau)];
+      if (k === undefined) items.push({ label: morceau, ok: false, why: "absent" });
+      else if (k === i) items.push({ label: morceau, ok: false, why: "soi" });
+      else if (!vus[k]) { vus[k] = true; items.push({ label: state.participants[k], ok: true, idx: k }); }
+    });
+    return items;
+  }
+
+  function lancerTirage() {
+    var n = state.participants.length;
+    var deja = state.participants.map(function (_, i) {
+      var s = {};
+      analyserHistorique(i).forEach(function (it) { if (it.ok) s[it.idx] = true; });
+      return s;
+    });
+    var INTERDIT = 1e9, PENALITE = 1000;
+    var cout = [];
+    for (var i = 0; i < n; i++) {
+      var ligne = [];
+      for (var j = 0; j < n; j++) {
+        if (i === j) ligne.push(INTERDIT);
+        else ligne.push((deja[i][j] ? PENALITE : 0) + Math.random());
+      }
+      cout.push(ligne);
+    }
+    var assign = affectationCoutMinimal(cout);
+    state.draw = {
+      assign: assign,
+      reused: assign.map(function (j, i) { return !!deja[i][j]; }),
+      seen: assign.map(function () { return false; }),
+      turn: 0,
+      phase: "summary",
+      revisit: false
+    };
+    state.step = "tirage";
+    state.serial = Math.floor(Math.random() * 900) + 100;
+  }
+
+  // ---------- Rendu ----------
+  var app = document.getElementById("app");
+
+  function render() {
+    document.getElementById("serial").textContent = "N° " + String(state.serial).padStart(3, "0");
+    var order = ["participants", "historique", "tirage"];
+    var cur = order.indexOf(state.step);
+    document.querySelectorAll("#steps li").forEach(function (li) {
+      var k = order.indexOf(li.dataset.step);
+      li.className = k === cur ? "on" : (k < cur ? "done" : "");
+    });
+    if (state.step === "participants") renderParticipants();
+    else if (state.step === "historique") renderHistorique();
+    else renderTirage();
+    sauver();
+  }
+
+  function renderParticipants() {
+    var list = state.participants.length
+      ? state.participants.map(function (nom, i) {
+          return '<li><span class="num">' + String(i + 1).padStart(2, "0") + '</span><span class="nm">' + esc(nom) +
+            '</span><button class="rm" data-rm="' + i + '" aria-label="Retirer ' + esc(nom) + '">×</button></li>';
+        }).join("")
+      : '<li class="empty">Personne pour l’instant. Ajoute le premier prénom ci-dessus.</li>';
+
+    app.innerHTML =
+      '<section class="ticket stub">' +
+        '<div><h2>Qui participe ?</h2><p class="hint">Ajoute chaque prénom. Majuscules et accents n’ont pas d’importance pour la suite.</p></div>' +
+        (state.exemple ? '<div class="example-note"><span>Liste d’exemple</span><button class="btn-text" id="clear-example">Tout effacer</button></div>' : "") +
+        '<form class="add-row" id="add-form" autocomplete="off">' +
+          '<input type="text" id="nom-input" placeholder="Prénom" aria-label="Prénom à ajouter" enterkeyhint="done">' +
+          '<button class="btn-primary" type="submit">Ajouter</button>' +
+        '</form>' +
+        '<p class="err" id="nom-err" aria-live="polite"></p>' +
+        '<ul class="names">' + list + '</ul>' +
+        '<div class="perfo"></div>' +
+        '<div class="stub-foot"><span>' + state.participants.length + ' participant' + (state.participants.length > 1 ? "s" : "") + '</span>' +
+          '<button class="btn-primary" id="to-hist"' + (state.participants.length < 2 ? " disabled" : "") + '>Continuer</button></div>' +
+      '</section>';
+
+    var form = document.getElementById("add-form");
+    var input = document.getElementById("nom-input");
+    var err = document.getElementById("nom-err");
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var nom = input.value.trim().replace(/\s+/g, " ");
+      if (!nom) { err.textContent = "Écris un prénom avant d’ajouter."; return; }
+      var cle = normaliser(nom);
+      if (state.participants.some(function (p) { return normaliser(p) === cle; })) {
+        err.textContent = "« " + nom + " » est déjà dans la liste.";
+        return;
+      }
+      if (state.exemple) { state.participants = []; state.history = []; state.exemple = false; }
+      state.participants.push(nom);
+      state.history.push("");
+      render();
+      document.getElementById("nom-input").focus();
+    });
+    app.querySelectorAll("[data-rm]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var i = +b.dataset.rm;
+        state.participants.splice(i, 1);
+        state.history.splice(i, 1);
+        state.exemple = false;
+        render();
+      });
+    });
+    var clr = document.getElementById("clear-example");
+    if (clr) clr.addEventListener("click", function () {
+      state.participants = []; state.history = []; state.exemple = false; render();
+      document.getElementById("nom-input").focus();
+    });
+    document.getElementById("to-hist").addEventListener("click", function () {
+      state.step = "historique"; render(); window.scrollTo(0, 0);
+    });
+  }
+
+  function chipsHtml(i) {
+    return analyserHistorique(i).map(function (it) {
+      if (it.ok) return '<span class="chip">' + esc(it.label) + '</span>';
+      var t = it.why === "soi" ? "soi-même, ignoré" : "absent, ignoré";
+      return '<span class="chip bad" title="' + t + '">' + esc(it.label) + '</span>';
+    }).join("");
+  }
+
+  function renderHistorique() {
+    var rows = state.participants.map(function (nom, i) {
+      return '<div class="hist">' +
+        '<label for="hist-' + i + '">' + esc(nom) + ' <span>a déjà tiré</span></label>' +
+        '<input type="text" id="hist-' + i + '" data-h="' + i + '" value="' + esc(state.history[i] || "") + '" placeholder="Prénoms séparés par des virgules">' +
+        '<div class="chips" id="chips-' + i + '">' + chipsHtml(i) + '</div>' +
+      '</div>';
+    }).join("");
+
+    app.innerHTML =
+      '<section class="ticket stub">' +
+        '<div><h2>Qui a déjà tiré qui ?</h2><p class="hint">Pour chacun, les personnes déjà tirées les fois précédentes. Laisse vide si aucune. Les prénoms reconnus passent en vert, les autres sont barrés et ignorés.</p></div>' +
+        '<div>' + rows + '</div>' +
+        '<div class="perfo"></div>' +
+        '<div class="stub-foot"><button class="btn-ghost" id="back-part">Retour</button>' +
+          '<button class="btn-primary" id="go-draw">Lancer le tirage</button></div>' +
+      '</section>';
+
+    app.querySelectorAll("[data-h]").forEach(function (inp) {
+      inp.addEventListener("input", function () {
+        var i = +inp.dataset.h;
+        state.history[i] = inp.value;
+        state.exemple = false;
+        document.getElementById("chips-" + i).innerHTML = chipsHtml(i);
+        sauver();
+      });
+    });
+    document.getElementById("back-part").addEventListener("click", function () { state.step = "participants"; render(); });
+    document.getElementById("go-draw").addEventListener("click", function () {
+      lancerTirage(); render(); window.scrollTo(0, 0);
+    });
+  }
+
+  function progressHtml() {
+    var d = state.draw;
+    return '<div class="progress" aria-hidden="true">' + d.seen.map(function (s, i) {
+      var cls = (i === d.turn && d.phase !== "done") ? "now" : (s ? "seen" : "");
+      return '<i class="' + cls + '"></i>';
+    }).join("") + '</div>';
+  }
+
+  function prochainNonVu(apres) {
+    var d = state.draw, n = d.seen.length;
+    for (var k = 1; k <= n; k++) {
+      var i = (apres + k) % n;
+      if (!d.seen[i]) return i;
+    }
+    return -1;
+  }
+
+  function renderTirage() {
+    var d = state.draw, P = state.participants;
+    var nbReuse = d.reused.filter(Boolean).length;
+
+    if (d.phase === "summary") {
+      var verdict = nbReuse === 0
+        ? '<div class="verdict ok">Tirage 100 % inédit<small>Personne ne retombe sur quelqu’un qu’il a déjà tiré.</small></div>'
+        : '<div class="verdict warn">Impossible de faire un tirage entièrement inédit<small>' + nbReuse +
+          ' personne' + (nbReuse > 1 ? "s retombent" : " retombe") + ' sur quelqu’un de déjà tiré, c’est le minimum possible. Les concernés le verront au moment de révéler.</small></div>';
+      app.innerHTML =
+        '<section class="ticket stub">' +
+          '<div><h2>Le tirage est fait</h2><p class="hint">Personne ne l’a vu. Chacun va découvrir le sien à tour de rôle sur ce téléphone.</p></div>' +
+          verdict +
+          '<div class="perfo"></div>' +
+          '<div class="stub-foot"><button class="btn-ghost" id="edit">Modifier</button>' +
+            '<button class="btn-primary" id="start">Commencer</button></div>' +
+        '</section>';
+      document.getElementById("edit").addEventListener("click", function () { state.draw = null; state.step = "historique"; render(); });
+      document.getElementById("start").addEventListener("click", function () { d.phase = "cover"; d.turn = 0; render(); });
+      return;
+    }
+
+    if (d.phase === "cover") {
+      var vus = d.seen.filter(Boolean).length;
+      app.innerHTML =
+        '<section class="ticket turn">' +
+          '<span class="eyebrow">' + (d.revisit ? "Nouvelle consultation" : "Personne " + (vus + 1) + " sur " + P.length) + '</span>' +
+          '<span class="who hidden-name">' + esc(P[d.turn]) + '</span>' +
+          '<p class="hint">Prends le téléphone. Les autres regardent ailleurs.</p>' +
+          '<button class="btn-primary btn-big" id="reveal">Je suis ' + esc(P[d.turn]) + ', révéler</button>' +
+          progressHtml() +
+        '</section>' +
+        (d.revisit ? '<button class="btn-text" id="cancel-revisit">Annuler</button>' : "");
+      document.getElementById("reveal").addEventListener("click", function () { d.phase = "reveal"; render(); });
+      var cr = document.getElementById("cancel-revisit");
+      if (cr) cr.addEventListener("click", function () { d.phase = "done"; d.revisit = false; render(); });
+      return;
+    }
+
+    if (d.phase === "reveal") {
+      var cible = P[d.assign[d.turn]];
+      var suivant = d.revisit ? -1 : prochainNonVu(d.turn);
+      var label = suivant === -1 ? "C’est noté, cacher" : "Cacher et passer à " + esc(P[suivant]);
+      app.innerHTML =
+        '<section class="ticket turn reveal-in">' +
+          '<span class="eyebrow">' + esc(P[d.turn]) + ', tu as tiré</span>' +
+          '<span class="who">' + esc(cible) + '</span>' +
+          '<span class="stamp">TICKET ' + String(state.serial).padStart(3, "0") + '-' + String(d.turn + 1).padStart(2, "0") + '</span>' +
+          (d.reused[d.turn] ? '<p class="reused-note">Tu l’avais déjà tiré une fois, il n’y avait pas d’autre solution possible.</p>' : "") +
+          '<button class="btn-primary btn-big" id="hide">' + label + '</button>' +
+        '</section>';
+      document.getElementById("hide").addEventListener("click", cacher);
+      return;
+    }
+
+    // phase "done"
+    app.innerHTML =
+      '<section class="ticket stub">' +
+        '<div><h2>Tout le monde a son tirage</h2><p class="hint">Le résultat reste caché. Quelqu’un a oublié ? Touche son prénom pour le revoir, seul.</p></div>' +
+        '<div class="relist">' + P.map(function (nom, i) {
+          return '<button class="btn-ghost" data-again="' + i + '">' + esc(nom) + '</button>';
+        }).join("") + '</div>' +
+        '<div class="perfo"></div>' +
+        '<div class="stub-foot" id="foot">' + (confirmReset
+          ? '<div class="confirm" style="flex:1"><p>Le tirage actuel sera perdu.</p><div class="actions"><button class="btn-ghost" id="no">Garder</button><button class="btn-primary" id="yes">Nouveau tirage</button></div></div>'
+          : '<span>' + P.length + ' tickets distribués</span><button class="btn-ghost" id="reset">Nouveau tirage</button>') +
+        '</div>' +
+      '</section>';
+    app.querySelectorAll("[data-again]").forEach(function (b) {
+      b.addEventListener("click", function () { d.turn = +b.dataset.again; d.revisit = true; d.phase = "cover"; render(); });
+    });
+    if (confirmReset) {
+      document.getElementById("no").addEventListener("click", function () { confirmReset = false; render(); });
+      document.getElementById("yes").addEventListener("click", function () {
+        confirmReset = false; state.draw = null; state.step = "historique"; render();
+      });
+    } else {
+      document.getElementById("reset").addEventListener("click", function () { confirmReset = true; render(); });
+    }
+  }
+
+  function cacher() {
+    var d = state.draw;
+    d.seen[d.turn] = true;
+    if (d.revisit) { d.revisit = false; d.phase = "done"; render(); return; }
+    var suivant = prochainNonVu(d.turn);
+    if (suivant === -1) { d.phase = "done"; }
+    else { d.turn = suivant; d.phase = "cover"; }
+    render();
+    window.scrollTo(0, 0);
+  }
+
+  // Si le téléphone est verrouillé ou l'onglet quitté pendant une révélation, on recache.
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden && state.draw && state.draw.phase === "reveal") {
+      state.draw.phase = "cover";
+      render();
+    }
+  });
+
+  // Un état sauvé en pleine révélation repart caché.
+  if (state.draw && state.draw.phase === "reveal") state.draw.phase = "cover";
+  render();
+})();
+</script>
+
+</body>
+</html>
